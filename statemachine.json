@@ -1,0 +1,439 @@
+{
+    "Comment": "Lamputer",
+    "StartAt": "Tick",
+    "States": {
+        "Tick": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:clock",
+            "Parameters": {
+                "state.$": "$.clock",
+                "halt.$": "$.control.halt"
+            },
+            "ResultPath": "$.clock",
+            "Next": "TickDone?",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Halt"
+                }
+            ]
+        },
+        "TickDone?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "And": [
+                        {
+                            "Variable": "$.clock[0]",
+                            "NumericEquals": 1
+                        },
+                        {
+                            "Variable": "$.clock[1]",
+                            "NumericEquals": 0
+                        }
+                    ],
+                    "Next": "SetHalt"
+                }
+            ],
+            "Default": "Measure"
+        },
+        "SetHalt": {
+            "Type": "Pass",
+            "Result": false,
+            "ResultPath": "$.control.halt",
+            "Next": "Measure"
+        },
+        "Measure": {
+            "Type": "Parallel",
+            "Next": "Merge",
+            "Branches": [
+                {
+                    "StartAt": "Passthrough",
+                    "States": {
+                        "Passthrough": {
+                            "Type": "Pass",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "PC",
+                    "States": {
+                        "PC": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:counter",
+                            "Parameters": {
+                                "clock.$": "$.clock",
+                                "reset": false,
+                                "counter_out.$": "$.control.counter_out",
+                                "jump.$": "$.control.jump",
+                                "count_enable.$": "$.control.count_enable",
+                                "input.$": "$.bus",
+                                "state.$": "$.pc.state"
+                            },
+                            "ResultPath": "$.output.pc",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectPCOutput"
+                        },
+                        "ConnectPCOutput": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.pc.output",
+                                "connections": {
+                                    "0xffffffffffffffff": "bus"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Register A",
+                    "States": {
+                        "Register A": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:register",
+                            "Parameters": {
+                                "state.$": "$.a.state",
+                                "clock.$": "$.clock",
+                                "load.$": "$.control.ain",
+                                "enable.$": "$.control.aout",
+                                "input.$": "$.bus"
+                            },
+                            "ResultPath": "$.output.a",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectOutputA"
+                        },
+                        "ConnectOutputA": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.a.output",
+                                "connections": {
+                                    "0xffffffffffffffff": "bus"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Register B",
+                    "States": {
+                        "Register B": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:register",
+                            "Parameters": {
+                                "state.$": "$.b.state",
+                                "clock.$": "$.clock",
+                                "load.$": "$.control.bin",
+                                "enable": false,
+                                "input.$": "$.bus"
+                            },
+                            "ResultPath": "$.output.b",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectOutputB"
+                        },
+                        "ConnectOutputB": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.b.output",
+                                "connections": {
+                                    "0xffffffffffffffff": "bus"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Instruction Register",
+                    "States": {
+                        "Instruction Register": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:register",
+                            "Parameters": {
+                                "state.$": "$.ir.state",
+                                "clock.$": "$.clock",
+                                "load.$": "$.control.irin",
+                                "enable.$": "$.control.irout",
+                                "input.$": "$.bus"
+                            },
+                            "ResultPath": "$.output.ir",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectIROutput"
+                        },
+                        "ConnectIROutput": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.ir.output",
+                                "connections": {
+                                    "0x00ffffffffffffff": "bus"
+                                }
+                            },
+                            "Next": "ConnectIRInstructionOutput"
+                        },
+                        "ConnectIRInstructionOutput": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.ir.state",
+                                "connections": {
+                                    "0xff00000000000000": "ir.instruction"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "ALU",
+                    "States": {
+                        "ALU": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:alu",
+                            "Parameters": {
+                                "enable.$": "$.control.eo",
+                                "subtract.$": "$.control.subtract",
+                                "a_state.$": "$.a.state",
+                                "b_state.$": "$.b.state"
+                            },
+                            "ResultPath": "$.output.alu",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectALUOutput"
+                        },
+                        "ConnectALUOutput": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.alu.output",
+                                "connections": {
+                                    "0xffffffffffffffff": "bus"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "AddressRegister",
+                    "States": {
+                        "AddressRegister": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:register",
+                            "Parameters": {
+                                "state.$": "$.addr.state",
+                                "clock.$": "$.clock",
+                                "load.$": "$.control.addrin",
+                                "enable": true,
+                                "input.$": "$.bus"
+                            },
+                            "ResultPath": "$.output.addr",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectAddressRegister"
+                        },
+                        "ConnectAddressRegister": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.addr.output",
+                                "connections": {
+                                    "0xffffffffffffffff": "ram.addr"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "RAM",
+                    "States": {
+                        "RAM": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:mem",
+                            "Parameters": {
+                                "clock.$": "$.clock",
+                                "load.$": "$.control.min",
+                                "enable.$": "$.control.mout",
+                                "state.$": "$.ram.state",
+                                "addr.$": "$.ram.addr",
+                                "input.$": "$.bus"
+                            },
+                            "ResultPath": "$.output.ram",
+                            "OutputPath": "$.output",
+                            "Next": "ConnectRAM"
+                        },
+                        "ConnectRAM": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:connection",
+                            "Parameters": {
+                                "pass.$": "$",
+                                "input.$": "$.ram.output",
+                                "connections": {
+                                    "0xffffffffffffffff": "bus"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "InvertClock",
+                    "States": {
+                        "InvertClock": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:invert_clock",
+                            "Parameters": {
+                                "clock.$": "$.clock"
+                            },
+                            "ResultPath": "$.invert_clock",
+                            "Next": "CheckICReset"
+                        },
+                        "CheckICReset": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.ic.state",
+                                    "StringEquals": "0x4",
+                                    "Next": "ICReset"
+                                }
+                            ],
+                            "Default": "ICIncrement"
+                        },
+                        "ICIncrement": {
+                            "Type": "Pass",
+                            "Result": false,
+                            "ResultPath": "$.ic.reset",
+                            "Next": "InstructionCounter"
+                        },
+                        "ICReset": {
+                            "Type": "Pass",
+                            "Result": true,
+                            "ResultPath": "$.ic.reset",
+                            "Next": "InstructionCounter"
+                        },
+                        "InstructionCounter": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:counter",
+                            "Parameters": {
+                                "clock.$": "$.invert_clock.output",
+                                "reset.$": "$.ic.reset",
+                                "counter_out": false,
+                                "jump": false,
+                                "count_enable": true,
+                                "input": "0x0",
+                                "state.$": "$.ic.state"
+                            },
+                            "ResultPath": "$.output.ic",
+                            "Next": "MicroInstructionSwitch"
+                        },
+                        "MicroInstructionSwitch": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.output.ic.state",
+                                    "StringEquals": "0x0",
+                                    "Next": "InstructionRom"
+                                },
+                                {
+                                    "Variable": "$.output.ic.state",
+                                    "StringEquals": "0x1",
+                                    "Next": "InstructionRom"
+                                },
+                                {
+                                    "Variable": "$.output.ic.state",
+                                    "StringEquals": "0x2",
+                                    "Next": "InstructionRom"
+                                },
+                                {
+                                    "Variable": "$.output.ic.state",
+                                    "StringEquals": "0x3",
+                                    "Next": "InstructionRom"
+                                },
+                                {
+                                    "Variable": "$.output.ic.state",
+                                    "StringEquals": "0x4",
+                                    "Next": "InstructionRom"
+                                }
+                            ],
+                            "Default": "ICNoop"
+                        },
+                        "InstructionRom": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:micro_code",
+                            "Parameters": {
+                                "op.$": "$.ir.instruction",
+                                "ic_count.$": "$.output.ic.state"
+                            },
+                            "ResultPath": "$.output.eprom",
+                            "OutputPath": "$.output",
+                            "Next": "InstructionRomControl"
+                        },
+                        "InstructionRomControl": {
+                            "Type": "Pass",
+                            "InputPath": "$.eprom.control",
+                            "ResultPath": "$.control",
+                            "End": true
+                        },
+                        "ICNoop": {
+                            "Type": "Pass",
+                            "Result": {
+                                "halt": false,
+                                "addrin": false,
+                                "min": false,
+                                "mout": false,
+                                "irin": false,
+                                "irout": false,
+                                "ain": false,
+                                "aout": false,
+                                "eo": false,
+                                "subtract": false,
+                                "bin": false,
+                                "outin": false,
+                                "count_enable": false,
+                                "counter_out": false,
+                                "jump": false
+                            },
+                            "ResultPath": "$.output.control",
+                            "OutputPath": "$.output",
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "Merge": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-2:364158658343:function:merge-state",
+            "ResultPath": "$",
+            "Next": "CheckHalt"
+        },
+        "CheckHalt": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.control.halt",
+                    "BooleanEquals": true,
+                    "Next": "Halt"
+                }
+            ],
+            "Default": "Tick"
+        },
+        "Halt": {
+            "Type": "Pass",
+            "End": true
+        }
+    }
+}

@@ -1,0 +1,47 @@
+{
+    "clock": [1, 1],
+    "control": {
+        "halt": false,
+        "addrin": false,
+        "min": false,
+        "mout": false,
+        "irin": false,
+        "irout": false,
+        "ain": false,
+        "aout": false,
+        "eo": false,
+        "subtract": false,
+        "bin": false,
+        "outin": false,
+        "count_enable": false,
+        "counter_out": false,
+        "jump": false
+    },
+    "pc": {
+        "state": "0x0"
+    },
+    "ic": {
+        "state": "0x4"
+    },
+    "a": {
+        "state": "0x0"
+    },
+    "b": {
+        "state": "0x0"
+    },
+    "ir": {
+        "state": "0x0",
+        "instruction": "0x0"
+    },
+    "alu": {
+        "carry_out": false
+    },
+    "addr": {
+        "state": "0x75b1fbc"
+    },
+    "ram": {
+        "addr": "0x0",
+        "state": "DgAAAAAAAAEPAAAAAAAAAgAAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAADgAAAAAAAAA="
+    },
+    "bus": "0x4f8096426"
+}
