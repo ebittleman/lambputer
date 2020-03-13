@@ -7,11 +7,15 @@ DWORD = 8
 
 LDA=0x01 << (BITS-8)
 ADD=0x02 << (BITS-8)
+SUB=0x03 << (BITS-8)
+STA=0x04 << (BITS-8)
 OUT=0x0e << (BITS-8)
 
 PROJ = [
-    LDA | 14,  # LDA 14
-    ADD | 15,  # ADD 15
+    LDA | 14,  # Load memory address 14 into the A register
+    ADD | 15,  # ADD memory address 15 to A register and store result in A register
+    SUB | 13,  # Subtract memory address 13 from A register and store result in A register
+    STA | 12,  # Store contents of A register to memory location 12
     OUT,       # OUT
 ]
 
@@ -36,6 +40,7 @@ def expand_ram(ram, size):
 
 OUTPUT = write_program(PROJ)
 OUTPUT = expand_ram(OUTPUT, int((16 - len(OUTPUT)/DWORD) * DWORD))
+OUTPUT = write_int(OUTPUT, 13, 26)
 OUTPUT = write_int(OUTPUT, 14, 28)
 OUTPUT = write_int(OUTPUT, 15, 14)
 
